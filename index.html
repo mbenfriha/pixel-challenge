@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8" />
+    <title>Socket.io</title>
+</head>
+
+<style>
+    @import url('https://fonts.googleapis.com/css?family=Poppins');
+
+    html {
+        margin:0;
+        padding:0;
+        background: url(https://s-media-cache-ak0.pinimg.com/originals/b8/42/73/b84273935ccb49148fa54da57d6234e4.jpg) no-repeat center fixed;
+        -webkit-background-size: cover; /* pour anciens Chrome et Safari */
+        background-size: cover; /* version standardisée */
+        color: white;
+        font-family: 'Poppins', sans-serif;
+    }
+    h1 {
+        text-align: center;
+    }
+    .game {
+        position: relative;
+        margin-left: auto;
+        margin-right: auto;
+        border: 7px white dashed;
+    }
+    #img {
+        position: relative;
+    }
+    .allPixel {
+        position: absolute;
+        top:0;
+        left: 0;
+    }
+    .pixel {
+        width: 10px;
+        height: 10px;
+        background: #ffd924;
+        float: left;
+        font-size: 6px;
+        text-align: center;
+        line-height: 10px;
+        box-shadow: 0px 0px 1px 0px #231816;
+    }
+    .infos {
+        margin: 0 auto;
+    }
+</style>
+
+<body>
+<h1>My Pixel Challenge</h1>
+<div class="game">
+<img id="img" src="" alt="pixel-games"/>
+</div>
+<div class="infos">
+    <div class="delete"><span id="nbr_pixel"></span> pixels détruit</div>
+    <div class="users">Vous êtes <span id="nbr_user"></span></div>
+</div>
+
+
+<script src="http://code.jquery.com/jquery-1.10.1.min.js"></script>
+<script src="/socket.io/socket.io.js"></script>
+<script>
+    $( document ).ready(function() {
+        //connexion au socket
+        var socket = io.connect('http://localhost:8080');
+
+        //socket de mise en place
+        socket.on('base', function(message) {
+            var height = message.height;
+            var width = message.width;
+            var pixel_clicked = message.pixel_clicked;
+
+            //socket creation du carré
+            $("#img").attr("src", message.image);
+            $(".game").css({"width": width, "height": height });
+            $(".infos").css({"width": width});
+            $(".game").append("<canvas id='allPixel' class='allPixel' width='"+width+"' height='"+height+"'></canvas>")
+            $("#nbr_pixel").text(parseInt(pixel_clicked.length));
+            $("#nbr_user").text(parseInt(message.clients.length));
+
+            //dessin du carré rouge
+            var c = document.getElementById("allPixel");
+            var ctx=c.getContext("2d");
+            var my_gradient=ctx.createLinearGradient(0,0,0,170);
+            my_gradient.addColorStop(0,"#c33e7b");
+            my_gradient.addColorStop(1,"#fc89e1");
+            ctx.fillStyle=my_gradient;            ctx.fillRect(0,0,width, height);
+            for(var p = 0; p < pixel_clicked.length; p++) {ctx.clearRect(pixel_clicked[p].x, pixel_clicked[p].y,10,10);}
+            ctx.stroke();
+
+            //socket quand un pixel est delete
+            socket.on('delete', function(pixel) {
+                ctx.clearRect(pixel.cell.x, pixel.cell.y,10,10);
+                $("#nbr_pixel").text(parseInt(pixel.pixel_clicked.length));
+            });
+
+            //socket quand un user se connect
+            socket.on('user', function(user) {
+                $("#nbr_user").text(parseInt(user.length));
+            });
+
+            //socket émis lors d'un clic
+            $('#allPixel').click(function(e) {
+                newX = Math.round((e.offsetX-5)/10)*10;
+                newY = Math.round((e.offsetY-5)/10)*10;
+
+                ctx.clearRect(newX, newY,10,10);
+
+                socket.emit('message', {cell: {x:newX, y:newY}});
+            })
+
+        })
+
+
+
+
+    });
+
+</script>
+</body>
+</html>
